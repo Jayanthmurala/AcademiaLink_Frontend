@@ -1,63 +1,79 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, Users, Target, TrendingUp, Calendar, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../../api/baseurl';
+
+// Define a type for Project
+interface Project {
+  _id: string;
+  title: string;
+  description?: string;
+  status?: string;
+  createdAt?: string;
+  deadline?: string;
+}
 
 const StudentDashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const stats = [
-    {
-      title: 'Active Projects',
-      value: '2',
-      icon: BookOpen,
-      color: 'bg-blue-500',
-      description: 'Currently participating in'
-    },
-    {
-      title: 'Skill Progress',
-      value: '75%',
-      icon: TrendingUp,
-      color: 'bg-emerald-500',
-      description: 'Profile completion'
-    },
-    {
-      title: 'Connections',
-      value: '12',
-      icon: Users,
-      color: 'bg-purple-500',
-      description: 'Faculty & peers'
-    },
-    {
-      title: 'Achievements',
-      value: '5',
-      icon: Target,
-      color: 'bg-orange-500',
-      description: 'Completed milestones'
-    }
-  ];
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
 
-  const recentActivities = [
-    {
-      title: 'Application Accepted',
-      description: 'Your application for "Smart Campus IoT System" has been accepted!',
-      time: '2 hours ago',
-      type: 'success'
-    },
-    {
-      title: 'New Learning Resource',
-      description: 'React Advanced Patterns course added to your recommendations',
-      time: '1 day ago',
-      type: 'info'
-    },
-    {
-      title: 'Project Milestone',
-      description: 'Completed Phase 1 of AI Chatbot development',
-      time: '3 days ago',
-      type: 'achievement'
-    }
-  ];
+  useEffect(() => {
+    // Fetch student projects
+    const fetchProjects = async () => {
+      setProjectsLoading(true);
+      try {
+        const res = await apiClient.get('/api/v1/student/projects');
+        setProjects(res.data.data || []);
+      } catch {
+        // setProjectsError('Failed to load projects'); // This line was removed as per the edit hint
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    // Fetch required skills for selected career path
+    const fetchSkills = async () => {
+      setSkillsLoading(true);
+      try {
+        const res = await apiClient.get('/api/v1/student/selected-career-path');
+        const path = res.data.selectedCareerPath;
+        setRequiredSkills(path?.requiredSkills || []);
+      } catch {
+        // setSkillsError('Failed to load skills'); // This line was removed as per the edit hint
+      } finally {
+        setSkillsLoading(false);
+      }
+    };
+    fetchSkills();
+  }, []);
+
+  // Calculate stats
+  const activeProjects = projects.length;
+  const userSkills = currentUser?.skills || [];
+  const skillProgress = requiredSkills.length > 0 ? Math.round((userSkills.length / requiredSkills.length) * 100) : 0;
+  const connections = (currentUser?.followers?.length || 0) + (currentUser?.following?.length || 0);
+  // Proxy: Achievements = completed projects
+  const achievements = projects.filter(p => p.status === 'completed').length;
+
+  // Proxy: Recent activity (last 3 projects)
+  const recentActivities = projects.slice(0, 3).map(p => ({
+    title: p.title,
+    description: p.description,
+    time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '',
+    type: p.status === 'completed' ? 'achievement' : 'info'
+  }));
+
+  // Proxy: Upcoming deadlines (next 3 projects with a deadline field)
+  const upcomingDeadlines = projects.filter(p => p.deadline).slice(0, 3);
 
   const quickActions = [
     {
@@ -97,20 +113,66 @@ const StudentDashboard: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
-              </div>
-              <div className={`${stat.color} p-3 rounded-lg`}>
-                <stat.icon className="h-6 w-6 text-white" />
-              </div>
+        {/* Active Projects */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active Projects</p>
+              {projectsLoading ? (
+                <p className="text-2xl font-bold text-gray-900 mt-1 animate-pulse">...</p>
+              ) : (
+                <p className="text-2xl font-bold text-gray-900 mt-1">{activeProjects}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Currently participating in</p>
+            </div>
+            <div className="bg-blue-500 p-3 rounded-lg">
+              <BookOpen className="h-6 w-6 text-white" />
             </div>
           </div>
-        ))}
+        </div>
+        {/* Skill Progress */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Skill Progress</p>
+              {skillsLoading ? (
+                <p className="text-2xl font-bold text-gray-900 mt-1 animate-pulse">...</p>
+              ) : (
+                <p className="text-2xl font-bold text-gray-900 mt-1">{skillProgress}%</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Profile completion</p>
+            </div>
+            <div className="bg-emerald-500 p-3 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        {/* Connections */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Connections</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{connections}</p>
+              <p className="text-xs text-gray-500 mt-1">Faculty & peers</p>
+            </div>
+            <div className="bg-purple-500 p-3 rounded-lg">
+              <Users className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        {/* Achievements */}
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Achievements</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{achievements}</p>
+              <p className="text-xs text-gray-500 mt-1">Completed milestones</p>
+            </div>
+            <div className="bg-orange-500 p-3 rounded-lg">
+              <Target className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -143,7 +205,11 @@ const StudentDashboard: React.FC = () => {
             <Bell className="h-5 w-5 text-gray-400" />
           </div>
           <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
+            {projectsLoading ? (
+              <div className="text-gray-400">Loading...</div>
+            ) : recentActivities.length === 0 ? (
+              <div className="text-gray-400">No recent activity</div>
+            ) : recentActivities.map((activity, index) => (
               <div key={index} className="flex items-start space-x-3">
                 <div className={`w-2 h-2 rounded-full mt-2 ${
                   activity.type === 'success' ? 'bg-emerald-500' :
@@ -168,21 +234,17 @@ const StudentDashboard: React.FC = () => {
           <Calendar className="h-5 w-5 text-gray-400" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-            <h3 className="font-medium text-red-900">Project Submission</h3>
-            <p className="text-sm text-red-600 mt-1">AI Chatbot Phase 2</p>
-            <p className="text-xs text-red-500 mt-1">Due in 3 days</p>
-          </div>
-          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-            <h3 className="font-medium text-yellow-900">Skill Assessment</h3>
-            <p className="text-sm text-yellow-600 mt-1">React Advanced Patterns</p>
-            <p className="text-xs text-yellow-500 mt-1">Due in 1 week</p>
-          </div>
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="font-medium text-blue-900">Team Meeting</h3>
-            <p className="text-sm text-blue-600 mt-1">IoT System Discussion</p>
-            <p className="text-xs text-blue-500 mt-1">Tomorrow at 2:00 PM</p>
-          </div>
+          {projectsLoading ? (
+            <div className="text-gray-400">Loading...</div>
+          ) : upcomingDeadlines.length === 0 ? (
+            <div className="text-gray-400">No upcoming deadlines</div>
+          ) : upcomingDeadlines.map((deadline, idx) => (
+            <div key={idx} className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-medium text-blue-900">{deadline.title}</h3>
+              <p className="text-sm text-blue-600 mt-1">{deadline.description}</p>
+              <p className="text-xs text-blue-500 mt-1">Due: {deadline.deadline}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
