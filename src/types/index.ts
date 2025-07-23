@@ -61,10 +61,12 @@ export interface Application {
 }
 
 export interface Publication {
+  _id: string;
   id: string;
   facultyId: string;
   title: string;
   year: number;
+  link?: string;
   fileUrl?: string;
 }
 

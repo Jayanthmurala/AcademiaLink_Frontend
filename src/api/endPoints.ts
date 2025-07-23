@@ -4,6 +4,10 @@ const endPoints = {
         method:'POST',
         url:'/api/v1/login'
     },
+    getProfile:{
+        method:'GET',
+        url:'/api/v1/profile'
+    },
     register:{
         method:'POST',
         url:'/api/v1/register'
@@ -31,6 +35,18 @@ const endPoints = {
     deleteStudentProject: {
       method: 'DELETE',
       url: '/api/v1/student/project/' // + projectId when used
+    },
+    facultyProfile:{
+        method:'PUT',
+        url:'/api/v1/faculty/profile'
+    },
+    addFacultyPublication:{
+        method:'POST',
+        url:'/api/v1/faculty/publications'
+    },
+    getPublicationsByIds:{
+        method:'POST',
+        url:'/api/v1/publications/batch'
     }
 }
 

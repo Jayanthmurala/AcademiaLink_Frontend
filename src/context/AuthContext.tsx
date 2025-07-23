@@ -9,7 +9,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   register: (userData: Partial<User>, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
-  isLoading: boolean;
+    isLoading: boolean;
+  setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -113,12 +114,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('authToken');
   };
 
-  const value: AuthContextType = {
+    const value: AuthContextType = {
     currentUser,
     login,
     register,
     logout,
     isLoading,
+    setCurrentUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
