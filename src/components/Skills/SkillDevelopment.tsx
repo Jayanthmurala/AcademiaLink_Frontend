@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, BookOpen, CheckCircle, AlertCircle, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Target, BookOpen, ExternalLink, CheckCircle, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/baseurl';
 
@@ -17,15 +17,12 @@ const SkillDevelopment: React.FC = () => {
   const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [completedSkills, setCompletedSkills] = useState<string[]>([]);
-  const [learningResources, setLearningResources] = useState<Record<string, Array<{ title: string; url: string; description: string; type: string; _id?: string }>>>({});
+  const [learningResources, setLearningResources] = useState<Record<string, Array<{ title: string; url: string; description: string; type: string }>>>({});
   const [resourceLoading, setResourceLoading] = useState<Record<string, boolean>>({});
   const [resourceError, setResourceError] = useState<Record<string, string>>({});
   const [addSkillInput, setAddSkillInput] = useState('');
   const [addSkillError, setAddSkillError] = useState('');
   const [allSet, setAllSet] = useState(false);
-  const [saveLoading, setSaveLoading] = useState<Record<string, boolean>>({});
-  const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({});
-  const [analyzeLoading, setAnalyzeLoading] = useState(false);
 
   useEffect(() => {
     fetchSkills();
@@ -97,38 +94,18 @@ const SkillDevelopment: React.FC = () => {
     }
   };
 
-  const handleSaveResource = async (resourceId: string) => {
-    setSaveLoading(prev => ({ ...prev, [resourceId]: true }));
-    setSaveSuccess(prev => ({ ...prev, [resourceId]: false }));
-    try {
-      await apiClient.post('/student/save-learning-resource', { resourceId }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      setSaveSuccess(prev => ({ ...prev, [resourceId]: true }));
-    } catch {
-      // Optionally show error
-    } finally {
-      setSaveLoading(prev => ({ ...prev, [resourceId]: false }));
-    }
-  };
-
   const handleAnalyzeSkills = async () => {
     setShowAnalysis(true);
     setAllSet(false);
-    setAnalyzeLoading(true);
-    if (!requiredSkills.length) {
-      setAnalyzeLoading(false);
-      return;
-    }
+    if (!requiredSkills.length) return;
     const missing = requiredSkills.filter(s => !userSkills.includes(s));
     if (missing.length === 0) {
       setAllSet(true);
       setLearningResources({});
-      setAnalyzeLoading(false);
       return;
     }
     // Fetch resources for all missing skills
-    const newResources: Record<string, Array<{ title: string; url: string; description: string; type: string; _id?: string }>> = {};
+    const newResources: Record<string, Array<{ title: string; url: string; description: string; type: string }>> = {};
     const newLoading: Record<string, boolean> = {};
     const newError: Record<string, string> = {};
     await Promise.all(missing.map(async (skill) => {
@@ -146,7 +123,6 @@ const SkillDevelopment: React.FC = () => {
     setLearningResources(newResources);
     setResourceLoading(newLoading);
     setResourceError(newError);
-    setAnalyzeLoading(false);
   };
 
   const toggleSkillCompletion = (skill: string) => {
@@ -264,10 +240,9 @@ const SkillDevelopment: React.FC = () => {
 
             <button
               onClick={handleAnalyzeSkills}
-              disabled={!selectedCareerPath || analyzeLoading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              disabled={!selectedCareerPath}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {analyzeLoading ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : null}
               Analyze Skills
             </button>
 
@@ -314,22 +289,10 @@ const SkillDevelopment: React.FC = () => {
                               {learningResources[skill] && learningResources[skill].length > 0 && (
                                 <ul className="list-disc ml-6">
                                   {learningResources[skill].map((resource, idx) => (
-                                    <li key={idx} className="mb-1 flex flex-col md:flex-row md:items-center md:justify-between">
-                                      <div>
-                                        <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline font-medium">{resource.title}</a>
-                                        <span className="ml-2 text-xs text-gray-600">({resource.type})</span>
-                                        <div className="text-xs text-gray-500">{resource.description}</div>
-                                      </div>
-                                      {resource._id && (
-                                        <button
-                                          className="ml-4 mt-2 md:mt-0 bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 flex items-center text-xs min-w-[110px] justify-center"
-                                          onClick={() => handleSaveResource(resource._id!)}
-                                          disabled={saveLoading[resource._id] || saveSuccess[resource._id]}
-                                        >
-                                          {saveLoading[resource._id] ? <Loader2 className="animate-spin h-4 w-4 mr-1" /> : saveSuccess[resource._id] ? <CheckCircle className="h-4 w-4 mr-1" /> : null}
-                                          {saveSuccess[resource._id] ? 'Saved' : 'Save Resource'}
-                                        </button>
-                                      )}
+                                    <li key={idx} className="mb-1">
+                                      <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline font-medium">{resource.title}</a>
+                                      <span className="ml-2 text-xs text-gray-600">({resource.type})</span>
+                                      <div className="text-xs text-gray-500">{resource.description}</div>
                                     </li>
                                   ))}
                                 </ul>
@@ -359,22 +322,10 @@ const SkillDevelopment: React.FC = () => {
                 {resources.length === 0 && <div className="text-gray-500 text-xs">No resources found.</div>}
                 <ul className="list-disc ml-6">
                   {resources.map((resource, idx) => (
-                    <li key={idx} className="mb-1 flex flex-col md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline font-medium">{resource.title}</a>
-                        <span className="ml-2 text-xs text-gray-600">({resource.type})</span>
-                        <div className="text-xs text-gray-500">{resource.description}</div>
-                      </div>
-                      {resource._id && (
-                        <button
-                          className="ml-4 mt-2 md:mt-0 bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 flex items-center text-xs min-w-[110px] justify-center"
-                          onClick={() => handleSaveResource(resource._id!)}
-                          disabled={saveLoading[resource._id] || saveSuccess[resource._id]}
-                        >
-                          {saveLoading[resource._id] ? <Loader2 className="animate-spin h-4 w-4 mr-1" /> : saveSuccess[resource._id] ? <CheckCircle className="h-4 w-4 mr-1" /> : null}
-                          {saveSuccess[resource._id] ? 'Saved' : 'Save Resource'}
-                        </button>
-                      )}
+                    <li key={idx} className="mb-1">
+                      <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline font-medium">{resource.title}</a>
+                      <span className="ml-2 text-xs text-gray-600">({resource.type})</span>
+                      <div className="text-xs text-gray-500">{resource.description}</div>
                     </li>
                   ))}
                 </ul>
